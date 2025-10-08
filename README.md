@@ -85,6 +85,17 @@ results = madncl(
     kkt_system=MadNCL.K2rAuglagKKTSystem,   # we need to reformulate the Newton system inside MadNCL
     linear_solver=MadNLPGPU.CUDSSSolver,    # factorize the KKT system on the GPU using NVIDIA cuDSS
 )
-
 ```
 
+## Citing MadNCL.jl
+
+If you use MadNCL.jl in your research, we would greatly appreciate your citing it.
+
+```bibtex
+@article{MadNCL,
+  title   = {{MadNCL: A GPU Implementation of Algorithm NCL for Large-Scale, Degenerate Nonlinear Programs}},
+  author  = {Alexis Montoison and François Pacaud and Michael Saunders and Sungho Shin and Dominique Orban},
+  journal = {arXiv preprint arXiv:2510.05885},
+  year    = {2025},
+}
+```
