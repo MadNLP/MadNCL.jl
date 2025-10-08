@@ -1,0 +1,35 @@
+name = "MadNCL"
+uuid = "434a0bcb-5a7c-42b2-a9d3-9e3f760e7af0"
+authors = ["fpacaud <francoispacaud8@gmail.com>", "amontoison <amontoison@anl.gov>"]
+version = "0.1.0"
+
+[deps]
+Atomix = "a9b6321e-bd34-4604-b9c9-b65b8de01458"
+KernelAbstractions = "63c18a36-062a-441e-b654-da1e3ab1ce7c"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+MadNLP = "2621e9c9-9eb4-46b1-8089-e8c72242dfb6"
+NLPModels = "a4795742-8479-5a88-8948-cc11e1c8c1a6"
+Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
+SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
+
+[weakdeps]
+MadNLPGPU = "d72a61cc-809d-412f-99be-fd81f4b8a598"
+
+[extensions]
+MadNCLCUDAExt = ["MadNLPGPU"]
+
+[compat]
+MadNLP = "0.8.9"
+MadNLPGPU = "0.7.12"
+MadNLPTests = "0.5.2"
+NLPModels = "0.21.5"
+
+[extras]
+CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
+FiniteDiff = "6a86dc24-6348-571c-b903-95158fe2bd41"
+MadNLPTests = "b52a2a03-04ab-4a5f-9698-6a2deff93217"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["FiniteDiff", "MadNLPTests", "Test", "CUDA", "MadNLPGPU"]
