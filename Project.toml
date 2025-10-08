@@ -20,8 +20,9 @@ MadNLPGPU = "d72a61cc-809d-412f-99be-fd81f4b8a598"
 MadNCLCUDAExt = ["MadNLPGPU"]
 
 [compat]
-MadNLP = "0.8.9"
-MadNLPGPU = "0.7.12"
+CUDA = "5.4.0 - 5.8.2"
+MadNLP = "0.8.12"
+MadNLPGPU = "0.7.14"
 MadNLPTests = "0.5.2"
 NLPModels = "0.21.5"
 
