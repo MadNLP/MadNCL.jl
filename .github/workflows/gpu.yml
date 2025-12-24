@@ -1,0 +1,38 @@
+name: Run tests
+
+on:
+  push:
+    branches:
+      - master
+    tags: '*'
+  pull_request:
+    types: [opened, synchronize, reopened]
+  schedule:
+    - cron: '0 0 * * 0'
+
+jobs:
+  test-gpu:
+    env:
+      CUDA_VISIBLE_DEVICES: 1
+      JULIA_DEPOT_PATH: /scratch/github-actions/julia_depot_madncl
+    runs-on:
+      labels: cuda
+    strategy:
+      matrix:
+        julia-version: ['lts', '1']
+        julia-arch: [x64]
+        hsl-version: ['2025.7.11']
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: julia-actions/install-juliaup@v2
+        with:
+          channel: ${{ matrix.julia-version }}
+      - uses: julia-actions/julia-buildpkg@latest
+      - name: Test MadNCL.jl
+        shell: julia --color=yes {0}
+        run: |
+          using Pkg
+          Pkg.develop(path=".")
+          Pkg.test("MadNCL")
+
