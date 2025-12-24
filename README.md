@@ -8,20 +8,30 @@ MadNCL is built as [MadNLP](https://github.com/MadNLP/MadNLP.jl)'s extension, an
 large-scale nonlinear programs on GPUs. MadNCL is particularly good at solving infeasible
 or degenerate optimization problems.
 
+## Installation
+
+MadIPM can be installed and tested through the Julia package manager:
+
+```julia
+julia> ]
+pkg> add MadIPM
+pkg> test MadIPM
+```
 
 ## Quickstart
 
 MadNCL leverages [JuliaSmoothOptimizers](https://jso.dev)'s ecosystem.
 For instance, you can solve any instance in [CUTEst.jl](https://github.com/JuliaSmoothOptimizers/CUTEst.jl/) simply as:
+
 ```julia
 using MadNCL
 using CUTEst
 nlp = CUTEstModel("HS15")
 results = madncl(nlp)
-
 ```
 
 You gain more fine-grained control on the solver by tuning the options:
+
 ```julia
 # Specify NCL's options
 ncl_options = MadNCL.NCLOptions{Float64}(
@@ -39,15 +49,35 @@ results = madncl(
     linear_solver=LDLSolver,   # factorize the KKT system with a LDL decomposition
     print_level=MadNLP.INFO,   # activate logs inside MadNLP
 )
-
 ```
 
+## JuMP
+
+MadNCL doesn't have yet an extension for [MathOptInterface.jl]() but the JuMP model can be wrapped as
+a `MathOptNLPModel` with [NLPModelsJuMP.jl](https://github.com/JuliaSmoothOptimizers/NLPModelsJuMP.jl).
+
+```julia
+using JuMP
+using NLPModelsJuMP
+using MadNCL
+
+jm = Model()
+x0 = [10, 10, 10, 10]
+@variable(jm, x[i = 1:4], start = x0[i])
+@constraint(jm, x[1]^2 - x[2] - x[4]^2 == 0)
+@constraint(nlp, x[2] - x[1]^3 - x[3]^2 == 0)
+@objective(jm, Min, -x[1])
+
+nlp = MathOptNLPModel(jm)
+results = madncl(nlp)
+```
 
 ## GPU support
 
 MadNCL supports natively the solution of nonlinear programs on the GPU using MadNLPGPU.
 To evaluate your model on the GPU, we recommend using [ExaModels](https://github.com/exanauts/ExaModels.jl).
 For instance, you can implement the instance `elec` from the [COPS benchmark](https://www.mcs.anl.gov/~more/cops/) directly as:
+
 ```julia
 using ExaModels
 
@@ -69,7 +99,6 @@ function elec_model(np; seed = 2713, T = Float64, backend = nothing, kwargs...)
 
     return ExaModels.ExaModel(core; kwargs...)
 end
-
 ```
 
 You can instantiate the model and solve it on the GPU using CUDA and MadNLPGPU, respectively:
