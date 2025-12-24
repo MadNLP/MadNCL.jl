@@ -10,12 +10,12 @@ or degenerate optimization problems.
 
 ## Installation
 
-MadIPM can be installed and tested through the Julia package manager:
+MadNCL can be installed and tested through the Julia package manager:
 
 ```julia
 julia> ]
-pkg> add MadIPM
-pkg> test MadIPM
+pkg> add MadNCL
+pkg> test MadNCL
 ```
 
 ## Quickstart
@@ -53,8 +53,8 @@ results = madncl(
 
 ## JuMP
 
-MadNCL doesn't have yet an extension for [MathOptInterface.jl]() but the JuMP model can be wrapped as
-a `MathOptNLPModel` with [NLPModelsJuMP.jl](https://github.com/JuliaSmoothOptimizers/NLPModelsJuMP.jl).
+MadNCL does not yet provide an extension for [MathOptInterface.jl](), but a JuMP model can be wrapped
+as a `MathOptNLPModel` using [NLPModelsJuMP.jl](https://github.com/JuliaSmoothOptimizers/NLPModelsJuMP.jl).
 
 ```julia
 using JuMP
@@ -65,7 +65,7 @@ jm = Model()
 x0 = [10, 10, 10, 10]
 @variable(jm, x[i = 1:4], start = x0[i])
 @constraint(jm, x[1]^2 - x[2] - x[4]^2 == 0)
-@constraint(nlp, x[2] - x[1]^3 - x[3]^2 == 0)
+@constraint(jm, x[2] - x[1]^3 - x[3]^2 == 0)
 @objective(jm, Min, -x[1])
 
 nlp = MathOptNLPModel(jm)
