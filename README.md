@@ -53,7 +53,7 @@ results = madncl(
 
 ## JuMP
 
-MadNCL does not yet provide an extension for [MathOptInterface.jl](), but a JuMP model can be wrapped
+MadNCL does not yet provide an extension for [MathOptInterface.jl](https://github.com/jump-dev/MathOptInterface.jl), but a JuMP model can be wrapped
 as a `MathOptNLPModel` using [NLPModelsJuMP.jl](https://github.com/JuliaSmoothOptimizers/NLPModelsJuMP.jl).
 
 ```julia
