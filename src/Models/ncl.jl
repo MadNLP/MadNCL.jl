@@ -71,7 +71,7 @@ function NCLModel(
     cnt = NLPModels.Counters()
 
     return NCLModel{T, VT, typeof(nlp)}(
-        nlp, nx, nr, meta, cnt, y, ρ,
+        nlp, nx, nr, meta, cnt, y, Ref{T}(ρ),
     )
 end
 
