@@ -31,7 +31,7 @@ struct NCLModel{T, VT, M} <: NLPModels.AbstractNLPModel{T, VT}
     meta::NLPModels.NLPModelMeta{T, VT}
     counters::NLPModels.Counters
     yk::VT
-    ρk::Ref{T}
+    ρk::Base.RefValue{T}
 end
 
 function NCLModel(
