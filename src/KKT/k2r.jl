@@ -14,7 +14,7 @@ The original augmented KKT system for augmented Lagrangian is:
 [   J        I      -I    0 ] [Δy]     [ d4]
 ```
 By removing the block associated to ``Δr``and setting ``θ := (ρI + Σᵣ)⁻¹``,
-we obtain the K2 formulation:
+we obtain the K2r formulation:
 ```
 [ H + Σₓ            Jᵀ] [Δx]     [ d1]
 [   0      Σₛ      -I ] [Δs]  =  [ d3]
