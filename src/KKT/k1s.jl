@@ -81,7 +81,6 @@ end
 function MadNLP.create_kkt_system(
     ::Type{K1sAuglagKKTSystem},
     cb::MadNLP.SparseCallback{T,VT},
-    ind_cons,
     linear_solver::Type;
     opt_linear_solver=MadNLP.default_options(linear_solver),
     hessian_approximation=MadNLP.ExactHessian,
@@ -91,13 +90,13 @@ function MadNLP.create_kkt_system(
     nx, nr = nlp.nx, nlp.nr
     n = cb.nvar
     m = cb.ncon
-    ind_ineq = ind_cons.ind_ineq
+    ind_ineq = cb.ind_ineq
     n_slack = length(ind_ineq)
     n_tot = nx + n_slack
-    n_fixed = length(ind_cons.ind_fixed)
+    n_fixed = length(cb.ind_fixed)
 
-    nlb = length(ind_cons.ind_lb)
-    nub = length(ind_cons.ind_ub)
+    nlb = length(cb.ind_lb)
+    nub = length(cb.ind_ub)
 
     VI = typeof(ind_ineq)
     ind_eq = if isa(ind_ineq, Vector)
@@ -197,7 +196,7 @@ function MadNLP.create_kkt_system(
             hess_raw, hess_com, hess_csc_map,
             jac_transpose_coo, jt_csc, jt_csc_map,
             _linear_solver,
-            ind_eq, ind_ineq, ind_cons.ind_lb, ind_cons.ind_ub, ind_cons.ind_fixed,
+            ind_eq, ind_ineq, cb.ind_lb, cb.ind_ub, cb.ind_fixed,
             n_tot, m, nnz_jac, nnz_hess,
             ext, etc,
     )
@@ -284,7 +283,7 @@ function MadNLP.build_kkt!(kkt::K1sAuglagKKTSystem)
     MadNLP.build_condensed_aug_coord!(kkt)
 end
 
-function MadNLP.solve!(kkt::K1sAuglagKKTSystem, w::MadNLP.AbstractKKTVector)
+function MadNLP.solve_kkt!(kkt::K1sAuglagKKTSystem, w::MadNLP.AbstractKKTVector)
     MadNLP.reduce_rhs!(w.xp_lr, MadNLP.dual_lb(w), kkt.l_diag, w.xp_ur, MadNLP.dual_ub(w), kkt.u_diag)
 
     nx, nr, ns = kkt.nlp.nx, kkt.nlp.nr, length(kkt.ind_ineq)
@@ -314,7 +313,7 @@ function MadNLP.solve!(kkt::K1sAuglagKKTSystem, w::MadNLP.AbstractKKTVector)
     dy[kkt.ind_ineq] .= (kkt.θk[kkt.ind_ineq] .* ds) ./ (Σs .+ kkt.θk[kkt.ind_ineq])
     mul!(dx, kkt.jt_csc, dy, 1.0, 1.0)
 
-    MadNLP.solve!(kkt.linear_solver, dx)
+    MadNLP.solve_linear_system!(kkt.linear_solver, dx)
 
     # Unpack solution
     # Δx

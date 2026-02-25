@@ -70,7 +70,6 @@ end
 function MadNLP.create_kkt_system(
     ::Type{K2rAuglagKKTSystem},
     cb::MadNLP.SparseCallback{T,VT},
-    ind_cons,
     linear_solver::Type;
     opt_linear_solver=MadNLP.default_options(linear_solver),
     hessian_approximation=MadNLP.ExactHessian,
@@ -80,12 +79,12 @@ function MadNLP.create_kkt_system(
     nx, nr = nlp.nx, nlp.nr
     n = cb.nvar
     m = cb.ncon
-    n_slack = length(ind_cons.ind_ineq)
+    n_slack = length(cb.ind_ineq)
     n_tot = nx + n_slack
-    nlb = length(ind_cons.ind_lb)
-    nub = length(ind_cons.ind_ub)
-    n_fixed = length(ind_cons.ind_fixed)
-    ind_ineq = ind_cons.ind_ineq
+    nlb = length(cb.ind_lb)
+    nub = length(cb.ind_ub)
+    n_fixed = length(cb.ind_fixed)
+    ind_ineq = cb.ind_ineq
 
     # Evaluate sparsity pattern
     jac_sparsity_I = MadNLP.create_array(cb, Int32, cb.nnzj)
@@ -202,7 +201,7 @@ function MadNLP.create_kkt_system(
         hess_raw, hess_com, hess_csc_map,
         jac_raw, jac_com, jac_csc_map,
         _linear_solver,
-        ind_ineq, ind_cons.ind_lb, ind_cons.ind_ub, ind_cons.ind_fixed,
+        ind_ineq, cb.ind_lb, cb.ind_ub, cb.ind_fixed,
         n_tot, m, nnz_jac, nnz_hess,
     )
 
@@ -274,7 +273,7 @@ function MadNLP.build_kkt!(kkt::K2rAuglagKKTSystem)
     MadNLP.transfer!(kkt.aug_com, kkt.aug_raw, kkt.aug_csc_map)
 end
 
-function MadNLP.solve!(kkt::K2rAuglagKKTSystem, w::MadNLP.AbstractKKTVector)
+function MadNLP.solve_kkt!(kkt::K2rAuglagKKTSystem, w::MadNLP.AbstractKKTVector)
     MadNLP.reduce_rhs!(w.xp_lr, MadNLP.dual_lb(w), kkt.l_diag, w.xp_ur, MadNLP.dual_ub(w), kkt.u_diag)
 
     nx, nr, ns = kkt.nlp.nx, kkt.nlp.nr, length(kkt.ind_ineq)
@@ -294,7 +293,7 @@ function MadNLP.solve!(kkt::K2rAuglagKKTSystem, w::MadNLP.AbstractKKTVector)
     d[nx+1:nx+ns] .= ws
     d[nx+ns+1:nx+ns+m] .= wy .- θk .* wr
 
-    MadNLP.solve!(kkt.linear_solver, d)
+    MadNLP.solve_linear_system!(kkt.linear_solver, d)
 
     # Unpack solution
     copyto!(wx, 1, d, 1, nx)

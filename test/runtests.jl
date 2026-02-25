@@ -140,14 +140,12 @@ end
     ]
         # Test KKT formulation
         linear_solver = MadNLP.LapackCPUSolver
-        ind_cons = MadNLP.get_index_constraints(ncl)
         cb = MadNLP.create_callback(
             MadNLP.SparseCallback, ncl,
         )
         kkt = MadNLP.create_kkt_system(
             KKT,
             cb,
-            ind_cons,
             linear_solver;
         )
         MadNLPTests.test_kkt_system(kkt, cb)

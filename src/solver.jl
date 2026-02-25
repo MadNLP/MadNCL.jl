@@ -168,12 +168,13 @@ function get_constr_viol_tol(ncl::NCLModel{T, VT, M}, r::AbstractVector) where {
 end
 
 function setup!(solver::MadNLP.MadNLPSolver{T}; μ=1e-1, tol=1e-8) where T
+    barrier = solver.opt.barrier
     # Update options
-    solver.opt.mu_init = μ
+    barrier.mu_init = μ
     solver.opt.tol = tol
-    solver.mu = solver.opt.mu_init
+    solver.mu = barrier.mu_init
     # Ensure the barrier parameter is fixed
-    solver.opt.mu_min = solver.opt.mu_init
+    barrier.mu_min = barrier.mu_init
 
     # Refresh values
     solver.obj_val = MadNLP.eval_f_wrapper(solver, solver.x)
@@ -184,7 +185,7 @@ function setup!(solver::MadNLP.MadNLPSolver{T}; μ=1e-1, tol=1e-8) where T
     theta = MadNLP.get_theta(solver.c)
     solver.theta_max = T(1e4) * max(1,theta)
     solver.theta_min = T(1e-4) * max(1,theta)
-    solver.tau = max(solver.opt.tau_min,one(T)-solver.opt.mu_init)
+    solver.tau = max(solver.opt.tau_min,one(T)-barrier.mu_init)
     empty!(solver.filter)
     push!(solver.filter, (solver.theta_max,-Inf))
 
