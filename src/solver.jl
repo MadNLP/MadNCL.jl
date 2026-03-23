@@ -36,7 +36,6 @@ struct NCLSolver{T, VT, M}
 end
 
 function NCLSolver(nlp::NLPModels.AbstractNLPModel{T, VT}; ncl_options=NCLOptions{T}(), ipm_options...) where {T, VT}
-    n, m = NLPModels.get_nvar(nlp), NLPModels.get_ncon(nlp)
     ncl = if ncl_options.scaling
         NCLModel(ScaledModel(nlp; max_gradient=ncl_options.scaling_max_gradient))
     else
@@ -47,6 +46,10 @@ function NCLSolver(nlp::NLPModels.AbstractNLPModel{T, VT}; ncl_options=NCLOption
         nlp_scaling=false,
         ipm_options...,
     )
+    m = MadNLP.n_constraints(solver.cb)
+    # Remove regularization variables to work in the original space
+    n = MadNLP.n_variables(solver.cb) - m
+    @assert solver.m == m
     return NCLSolver{T, VT, typeof(ncl.nlp)}(ncl, solver, ncl_options, n, m)
 end
 
@@ -69,47 +72,42 @@ mutable struct NCLStats{T, VT} <: AbstractExecutionStats
 end
 
 function NCLStats(solver::NCLSolver{T, VT, M}, status) where {T, VT, M<:NLPModels.AbstractNLPModel}
-    n, m = solver.n, solver.m
+    ipm = solver.ipm # MadNLP instance
     ncl = solver.ncl
-    x_final = MadNLP.primal(solver.ipm.x)[1:n]
-    r_final = MadNLP.primal(solver.ipm.x)[1+n:m+n]
-    zl = MadNLP.primal(solver.ipm.zl)[1:n]
-    zu = MadNLP.primal(solver.ipm.zu)[1:n]
-    return NCLStats{T, VT}(
-        status,
-        x_final,
-        r_final,
-        NLPModels.obj(ncl.nlp, x_final),
-        solver.ipm.inf_du,
-        norm(r_final, Inf),
-        copy(solver.ncl.yk),
-        zl,
-        zu,
-        solver.ipm.cnt.k,
-        solver.ipm.cnt,
-    )
-end
+    # Get original number of variables (before removing the fixed variables)
+    n = NLPModels.get_nvar(ncl.nlp)
+    m = solver.m
+    ρk = ncl.ρk[]
+    x = similar(VT, n + m)
+    zl = similar(VT, n + m)
+    zu = similar(VT, n + m)
+    r = MadNLP.primal(solver.ipm.x)[1+n:m+n]
+    MadNLP.unpack_x!(x, ipm.cb, MadNLP.variable(solver.ipm.x))
+    MadNLP.unpack_z!(zl, ipm.cb, MadNLP.variable(solver.ipm.zl))
+    MadNLP.unpack_z!(zu, ipm.cb, MadNLP.variable(solver.ipm.zu))
 
-function NCLStats(solver::NCLSolver{T, VT, M}, status) where {T, VT, M<:ScaledModel}
-    n, m = solver.n, solver.m
-    ncl = solver.ncl
-    obj_scale, con_scale = ncl.nlp.scaling_obj, ncl.nlp.scaling_cons
-    # Unscale solution
-    x_final = MadNLP.primal(solver.ipm.x)[1:n]
-    r_final = MadNLP.primal(solver.ipm.x)[1+n:m+n] ./ con_scale
-    zl = MadNLP.primal(solver.ipm.zl)[1:n] ./ obj_scale
-    zu = MadNLP.primal(solver.ipm.zu)[1:n] ./ obj_scale
-    y = copy(solver.ipm.y) .* con_scale ./ obj_scale
+    y = copy(solver.ipm.y)
+    r = x[n+1:n+m]
+    obj_val = solver.ipm.obj_val + dot(y, r) - 0.5 * ρk * dot(r, r)
+    MadNLP.update_z!(ipm.cb, x, y, zl, zu, ipm.jacl)
+    # Scale back problem data
+    if isa(ncl.nlp, ScaledModel)
+        obj_scale, con_scale = ncl.nlp.scaling_obj, ncl.nlp.scaling_cons
+        obj_val /= obj_scale
+        y .= y .* con_scale ./ obj_scale
+        zl .= zl ./ obj_scale
+        zu .= zu ./ obj_scale
+    end
     return NCLStats{T, VT}(
         status,
-        x_final,
-        r_final,
-        NLPModels.obj(ncl.nlp, x_final) ./ obj_scale,
+        x[1:n],
+        r,
+        obj_val,
         solver.ipm.inf_du,
-        norm(r_final, Inf),
+        norm(r, Inf),
         y,
-        zl,
-        zu,
+        zl[1:n],
+        zu[1:n],
         solver.ipm.cnt.k,
         solver.ipm.cnt,
     )
@@ -126,8 +124,6 @@ function getStatus(result::NCLStats)
         println("Unknown return status.")
     end
 end
-
-
 
 #=
     NCL Algorithm
@@ -426,7 +422,7 @@ function solve!(solver::NCLSolver{T}) where T
 
         # Log evolution
         ipm_iter = ipm.cnt.k
-        obj_val = NLPModels.obj(ncl.nlp, x)
+        obj_val = ipm.obj_val + dot(ncl.yk, r) - 0.5 * ncl.ρk[] * dot(r, r)
         options.verbose && _log_iter(iter, flag, ipm_iter, obj_val, pr_feas, du_feas, η, μ, ncl.ρk[])
 
         # Check convergence

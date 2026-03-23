@@ -164,6 +164,23 @@ end
     end
 end
 
+@testset "Fixed variables ($(kkt))" for kkt in [
+    MadNCL.K2rAuglagKKTSystem,
+    MadNCL.K1sAuglagKKTSystem,
+]
+    nlp = HS15Model()
+    # Set LB = UB to fix the first variable
+    nlp.meta.lvar[1] = 0.5
+    ref_results = MadNLP.madnlp(nlp; print_level=MadNLP.ERROR)
+    stats = MadNCL.madncl(nlp; print_level=MadNLP.ERROR, kkt_system=kkt)
+    @test stats.status == MadNLP.SOLVE_SUCCEEDED
+    @test stats.objective ≈ ref_results.objective rtol=1e-6
+    @test stats.multipliers ≈ ref_results.multipliers rtol=1e-6
+    @test stats.solution ≈ ref_results.solution rtol=1e-6
+    @test stats.multipliers_L ≈ ref_results.multipliers_L rtol=1e-6
+    @test stats.multipliers_U ≈ ref_results.multipliers_U rtol=1e-6
+end
+
 if CUDA.has_cuda()
     include("cuda_wrapper.jl")
 end

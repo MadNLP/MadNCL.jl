@@ -30,7 +30,6 @@ descent direction as
 
 """
 struct K1sAuglagKKTSystem{T, VT, MT, VI, VI32, LS, EXT} <: MadNLP.AbstractKKTSystem{T, VT, MT, MadNLP.ExactHessian{T, VT}}
-    nlp::NCLModel{T, VT}
     hess_callback::VT
     jac_callback::VT
     reg::VT
@@ -68,9 +67,10 @@ struct K1sAuglagKKTSystem{T, VT, MT, VI, VI32, LS, EXT} <: MadNLP.AbstractKKTSys
     ind_ineq::VI
     ind_lb::VI
     ind_ub::VI
-    ind_fixed::VI
     n::Int
     m::Int
+    nx::Int
+    nr::Int
     nnz_jac::Int
     nnz_hess::Int
     ext::EXT
@@ -87,13 +87,13 @@ function MadNLP.create_kkt_system(
     qn_options=MadNLP.QuasiNewtonOptions(),
 ) where {T,VT}
     nlp = cb.nlp
-    nx, nr = nlp.nx, nlp.nr
+    nr = nlp.nr
     n = cb.nvar
     m = cb.ncon
     ind_ineq = cb.ind_ineq
     n_slack = length(ind_ineq)
-    n_tot = nx + n_slack
-    n_fixed = length(cb.ind_fixed)
+    n_tot = n + n_slack - nr
+    nx = n - nr
 
     nlb = length(cb.ind_lb)
     nub = length(cb.ind_ub)
@@ -142,14 +142,8 @@ function MadNLP.create_kkt_system(
     # COO matrices
     # Hessian
     nnz_hess = cb.nnzh - nr
-    hess_x_I = hess_sparsity_I[1:cb.nnzh - nr - n_fixed]
-    hess_x_J = hess_sparsity_J[1:cb.nnzh - nr - n_fixed]
-    # N.B. Special treatment for fixed variables in MadNLP: the nnz entries
-    # for the fixed variables are moved at the end.
-    if n_fixed > 0
-        append!(hess_x_I, hess_sparsity_I[cb.nnzh-n_fixed+1:cb.nnzh])
-        append!(hess_x_J, hess_sparsity_J[cb.nnzh-n_fixed+1:cb.nnzh])
-    end
+    hess_x_I = hess_sparsity_I[1:cb.nnzh - nr]
+    hess_x_J = hess_sparsity_J[1:cb.nnzh - nr]
     hess = VT(undef, nnz_hess)
     hess_raw = MadNLP.SparseMatrixCOO(
         nx, nx,
@@ -184,7 +178,6 @@ function MadNLP.create_kkt_system(
     ext = MadNLP.get_sparse_condensed_ext(VT, hess_com, jptr, jt_csc_map, hess_csc_map)
     etc = Dict{Symbol, Any}()
     return K1sAuglagKKTSystem(
-            nlp,
             hess_callback, jac_callback,
             reg, pr_diag, du_diag,
             l_diag, u_diag, l_lower, u_lower,
@@ -196,8 +189,8 @@ function MadNLP.create_kkt_system(
             hess_raw, hess_com, hess_csc_map,
             jac_transpose_coo, jt_csc, jt_csc_map,
             _linear_solver,
-            ind_eq, ind_ineq, cb.ind_lb, cb.ind_ub, cb.ind_fixed,
-            n_tot, m, nnz_jac, nnz_hess,
+            ind_eq, ind_ineq, cb.ind_lb, cb.ind_ub,
+            n_tot, m, nx, nr, nnz_jac, nnz_hess,
             ext, etc,
     )
 end
@@ -231,22 +224,17 @@ function MadNLP.compress_jacobian!(kkt::K1sAuglagKKTSystem)
 end
 
 function MadNLP.compress_hessian!(kkt::K1sAuglagKKTSystem)
-    nr = kkt.nlp.nr
-    n_fixed = length(kkt.ind_fixed)
+    nr = kkt.nr
     # Update values in COO matrix
-    kkt.hess_raw.V[1:kkt.nnz_hess-n_fixed] .= @view kkt.hess_callback[1:kkt.nnz_hess-n_fixed]
+    kkt.hess_raw.V[1:kkt.nnz_hess] .= @view kkt.hess_callback[1:kkt.nnz_hess]
     # Update ρ
-    kkt.ρk .= @view kkt.hess_callback[kkt.nnz_hess-n_fixed+1:kkt.nnz_hess-n_fixed+nr]
-    # Update fixed values
-    if n_fixed > 0
-        kkt.hess_raw.V[kkt.nnz_hess-n_fixed+1:kkt.nnz_hess] .= @view kkt.hess_callback[kkt.nnz_hess+nr-n_fixed+1:kkt.nnz_hess+nr]
-    end
+    kkt.ρk .= @view kkt.hess_callback[kkt.nnz_hess+1:kkt.nnz_hess+nr]
     # Transfer to CSC
     MadNLP.transfer!(kkt.hess_com, kkt.hess_raw, kkt.hess_csc_map)
 end
 
 function MadNLP.jtprod!(y::AbstractVector, kkt::K1sAuglagKKTSystem, x::AbstractVector)
-    nx, nr, ns = kkt.nlp.nx, kkt.nlp.nr, length(kkt.ind_ineq)
+    nx, nr, ns = kkt.nx, kkt.nr, length(kkt.ind_ineq)
     jtx = view(kkt.buffer1, 1:nx)
     mul!(jtx, kkt.jt_csc, x)
     # Unpack results
@@ -268,7 +256,7 @@ function MadNLP.build_condensed_aug_coord!(kkt::K1sAuglagKKTSystem{T,VT,MT}) whe
 end
 
 function MadNLP.build_kkt!(kkt::K1sAuglagKKTSystem)
-    nx, nr, ns = kkt.nlp.nx, kkt.nlp.nr, length(kkt.ind_ineq)
+    nx, nr, ns = kkt.nx, kkt.nr, length(kkt.ind_ineq)
     Σx = @view kkt.pr_diag[1:nx]
     Σr = @view kkt.pr_diag[nx+1:nx+nr]
     Σs = @view kkt.pr_diag[nx+nr+1:nx+nr+ns]
@@ -286,7 +274,7 @@ end
 function MadNLP.solve_kkt!(kkt::K1sAuglagKKTSystem, w::MadNLP.AbstractKKTVector)
     MadNLP.reduce_rhs!(w.xp_lr, MadNLP.dual_lb(w), kkt.l_diag, w.xp_ur, MadNLP.dual_ub(w), kkt.u_diag)
 
-    nx, nr, ns = kkt.nlp.nx, kkt.nlp.nr, length(kkt.ind_ineq)
+    nx, nr, ns = kkt.nx, kkt.nr, length(kkt.ind_ineq)
     n, m = kkt.n, kkt.m
 
     Σs = @view kkt.pr_diag[nx+nr+1:nx+nr+ns]
@@ -333,7 +321,7 @@ end
 
 function mul!(w::MadNLP.AbstractKKTVector{T}, kkt::K1sAuglagKKTSystem, v::MadNLP.AbstractKKTVector, alpha = one(T), beta = zero(T)) where {T}
     n, m = kkt.n, kkt.m
-    nx, nr, ns = kkt.nlp.nx, kkt.nlp.nr, length(kkt.ind_ineq)
+    nx, nr, ns = kkt.nx, kkt.nr, length(kkt.ind_ineq)
     ρk = kkt.ρk
     # Unpack vector x
     vx = view(MadNLP.full(v), 1:nx)
