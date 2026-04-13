@@ -3,9 +3,10 @@ using Test
 using LinearAlgebra
 using MadNLP
 using MadNCL
-using NLPModels
+using NLPModels, NLPModelsJuMP
 using FiniteDiff
 using MadNLPTests
+using JuMP
 
 using CUDA
 
@@ -179,6 +180,25 @@ end
     @test stats.solution ≈ ref_results.solution rtol=1e-6
     @test stats.multipliers_L ≈ ref_results.multipliers_L rtol=1e-6
     @test stats.multipliers_U ≈ ref_results.multipliers_U rtol=1e-6
+end
+
+# Test taken from MadNLPTests
+@testset "Max sense optimization problem" begin
+    model = Model()
+    @variable(model, 0.0 <= x[1:3])
+    @constraint(model, x[1] + x[2] + x[3] == 1.0)
+    @objective(model, Max, x[1] + 2*x[2] + 3*x[3])
+
+    nlp = NLPModelsJuMP.MathOptNLPModel(model)
+    results = MadNCL.madncl(nlp; print_level=MadNLP.ERROR)
+
+    @test results.status == MadNLP.SOLVE_SUCCEEDED
+    @test results.objective ≈ 3.0 rtol=1e-6
+    @test results.solution ≈ [0.0, 0.0, 1.0] rtol=1e-6
+    @test results.multipliers[1] ≈ -3.0 rtol=1e-6
+    @test results.multipliers_L[1] ≈ 2.0 rtol=1e-6
+    @test results.multipliers_L[2] ≈ 1.0 rtol=1e-6
+    @test results.multipliers_L[3] ≈ 0.0 atol=1e-6
 end
 
 if CUDA.has_cuda()
