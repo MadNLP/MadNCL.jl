@@ -82,7 +82,6 @@ function NCLStats(solver::NCLSolver{T, VT, M}, status) where {T, VT, M<:NLPModel
     x = similar(VT, n + m)
     zl = similar(VT, n + m)
     zu = similar(VT, n + m)
-    r = MadNLP.primal(solver.ipm.x)[1+n:m+n]
     MadNLP.unpack_x!(x, ipm.cb, MadNLP.variable(solver.ipm.x))
     MadNLP.unpack_z!(zl, ipm.cb, MadNLP.variable(solver.ipm.zl))
     MadNLP.unpack_z!(zu, ipm.cb, MadNLP.variable(solver.ipm.zu))
