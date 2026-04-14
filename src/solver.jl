@@ -77,6 +77,7 @@ function NCLStats(solver::NCLSolver{T, VT, M}, status) where {T, VT, M<:NLPModel
     # Get original number of variables (before removing the fixed variables)
     n = NLPModels.get_nvar(ncl.nlp)
     m = solver.m
+    is_min = NLPModels.get_minimize(ncl.nlp)
     ρk = ncl.ρk[]
     x = similar(VT, n + m)
     zl = similar(VT, n + m)
@@ -102,10 +103,10 @@ function NCLStats(solver::NCLSolver{T, VT, M}, status) where {T, VT, M<:NLPModel
         status,
         x[1:n],
         r,
-        obj_val,
+        is_min ? obj_val : -obj_val,
         solver.ipm.inf_du,
         norm(r, Inf),
-        y,
+        is_min ? y : .-y,
         zl[1:n],
         zu[1:n],
         solver.ipm.cnt.k,
@@ -158,9 +159,14 @@ function get_constr_viol_tol(ncl::NCLModel, r::AbstractVector)
     return norm(r, Inf)
 end
 function get_constr_viol_tol(ncl::NCLModel{T, VT, M}, r::AbstractVector) where {T, VT, M<:ScaledModel}
-    con_scale = ncl.nlp.scaling_cons
-    # Compute norm-Inf with mapreduce
-    return mapreduce((x, c) -> abs(x) / c, max, r, con_scale)
+    m = NLPModels.get_ncon(ncl)
+    if m > 0
+        con_scale = ncl.nlp.scaling_cons
+        # Compute norm-Inf with mapreduce
+        return mapreduce((x, c) -> abs(x) / c, max, r, con_scale)
+    else
+        return 0.0
+    end
 end
 
 function setup!(solver::MadNLP.MadNLPSolver{T}; μ=1e-1, tol=1e-8) where T
