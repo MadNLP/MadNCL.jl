@@ -8,7 +8,7 @@ using FiniteDiff
 using MadNLPTests
 using JuMP
 
-using CUDA
+using CUDACore
 
 include("hs15.jl")
 include("dummy_qp.jl")
@@ -201,7 +201,7 @@ end
     @test results.multipliers_L[3] ≈ 0.0 atol=1e-6
 end
 
-if CUDA.has_cuda()
+if CUDACore.has_cuda()
     include("cuda_wrapper.jl")
 end
 

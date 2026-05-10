@@ -1,5 +1,6 @@
 
-using CUDA
+using CUDACore
+using cuSPARSE
 using MadNLPGPU
 
 function test_model_gpu(ncl_cpu, ncl_gpu)
@@ -29,15 +30,15 @@ function test_model_gpu(ncl_cpu, ncl_gpu)
     i_cpu = zeros(Int, nnzj_cpu)
     j_cpu = zeros(Int, nnzj_cpu)
     NLPModels.jac_structure!(ncl_cpu, i_cpu, j_cpu)
-    i_gpu = CUDA.zeros(Int, nnzj_gpu)
-    j_gpu = CUDA.zeros(Int, nnzj_gpu)
+    i_gpu = CUDACore.zeros(Int, nnzj_gpu)
+    j_gpu = CUDACore.zeros(Int, nnzj_gpu)
     NLPModels.jac_structure!(ncl_gpu, i_gpu, j_gpu)
     @test i_cpu == Array(i_gpu)
     @test j_cpu == Array(j_gpu)
     # Jacobian values
     jac_cpu = zeros(Float64, nnzj_cpu)
     NLPModels.jac_coord!(ncl_cpu, x0_cpu, jac_cpu)
-    jac_gpu = CUDA.zeros(Float64, nnzj_gpu)
+    jac_gpu = CUDACore.zeros(Float64, nnzj_gpu)
     NLPModels.jac_coord!(ncl_gpu, x0_gpu, jac_gpu)
     @test jac_cpu ≈ Array(jac_gpu)
     # Hessian sparsity pattern
@@ -47,14 +48,14 @@ function test_model_gpu(ncl_cpu, ncl_gpu)
     i_cpu = zeros(Int, nnzh_cpu)
     j_cpu = zeros(Int, nnzh_cpu)
     NLPModels.hess_structure!(ncl_cpu, i_cpu, j_cpu)
-    i_gpu = CUDA.zeros(Int, nnzh_gpu)
-    j_gpu = CUDA.zeros(Int, nnzh_gpu)
+    i_gpu = CUDACore.zeros(Int, nnzh_gpu)
+    j_gpu = CUDACore.zeros(Int, nnzh_gpu)
     NLPModels.hess_structure!(ncl_gpu, i_gpu, j_gpu)
     @test i_cpu == Array(i_gpu)
     @test j_cpu == Array(j_gpu)
     # Hessian values
-    hess_gpu = CUDA.zeros(Float64, nnzh_gpu)
-    y_gpu = CUDA.ones(Float64, m)
+    hess_gpu = CUDACore.zeros(Float64, nnzh_gpu)
+    y_gpu = CUDACore.ones(Float64, m)
     NLPModels.hess_coord!(ncl_gpu, x0_gpu, y_gpu, hess_gpu)
     hess_cpu = zeros(Float64, nnzh_cpu)
     y_cpu = ones(Float64, m)
@@ -71,7 +72,7 @@ end
     nlp_cpu = DenseDummyQP(zeros(Float64, n); m=m)
     ncl_cpu = MadNCL.NCLModel(nlp_cpu)
     # Device evaluator
-    nlp_gpu = DenseDummyQP(CUDA.zeros(Float64, n); m=m)
+    nlp_gpu = DenseDummyQP(CUDACore.zeros(Float64, n); m=m)
     ncl_gpu = MadNCL.NCLModel(nlp_gpu)
 
     # Test instantiation of NCLModel on the GPU.
