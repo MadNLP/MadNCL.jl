@@ -8,7 +8,7 @@ using FiniteDiff
 using MadNLPTests
 using JuMP
 
-# using CUDA
+using CUDA
 
 include("hs15.jl")
 include("dummy_qp.jl")
