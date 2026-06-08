@@ -1,5 +1,6 @@
 
 using CUDA
+using CUDSS
 using MadNLPGPU
 
 function test_model_gpu(ncl_cpu, ncl_gpu)

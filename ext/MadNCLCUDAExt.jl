@@ -3,13 +3,14 @@ module MadNCLCUDAExt
 using LinearAlgebra
 using SparseArrays
 import MadNLPGPU
-import MadNLPGPU.CUDA: CUSPARSE, CuVector, CUDABackend
+import CUDA: cuSPARSE, CUDACore
+import CUDA: CuVector, CUDABackend
 import KernelAbstractions: synchronize
 import MadNLP
 import MadNCL
 
 function MadNLP.transfer!(
-    dest::CUSPARSE.CuSparseMatrixCSC{Tv},
+    dest::cuSPARSE.CuSparseMatrixCSC{Tv},
     src::MadNLP.SparseMatrixCOO{Tv},
     map::CuVector{Int},
 ) where {Tv}
@@ -23,7 +24,7 @@ end
 
 function MadNCL.symul!(
     y::CuVector{T},
-    A::CUSPARSE.CuSparseMatrixCSC{T},
+    A::cuSPARSE.CuSparseMatrixCSC{T},
     x::CuVector{T},
     alpha::Number,
     beta::Number,
@@ -38,7 +39,7 @@ end
 
 function MadNLP.build_condensed_aug_coord!(
     kkt::MadNCL.K1sAuglagKKTSystem{T,VT,MT},
-) where {T,VT,MT<:CUSPARSE.CuSparseMatrixCSC{T}}
+) where {T,VT,MT<:cuSPARSE.CuSparseMatrixCSC{T}}
     fill!(kkt.aug_com.nzVal, zero(T))
     if length(kkt.hptr) > 0
         MadNLPGPU._transfer_hessian_kernel!(CUDABackend())(
